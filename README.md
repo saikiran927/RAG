@@ -1,6 +1,6 @@
 # Analytics Vidya RAG — Python Q&A API
 
-A Retrieval-Augmented Generation (RAG) pipeline built on top of a Stack Overflow Python Q&A dataset. It ingests questions and answers from CSV files, creates semantic embeddings, stores them in a FAISS vector index and SQLite database, and serves an API that answers user queries using Google Gemini grounded strictly in the retrieved context.
+A Retrieval-Augmented Generation (RAG) pipeline built on top of a Stack Overflow Python Q&A dataset. It ingests questions and answers from CSV files, creates semantic embeddings using all-minilm-l6-vs which best at very Fast, stores them in a FAISS vector index and SQLite database, and serves an API that answers user queries using Google Gemini llm grounded strictly in the retrieved context.
 
 ---
 
@@ -35,7 +35,7 @@ CSV Files (Questions + Answers)
 | Embedding Model | `sentence-transformers/all-MiniLM-L6-v2` (384-dim) |
 | Vector Database | FAISS (`IndexFlatIP` — cosine similarity) |
 | Document Store | SQLite3 |
-| LLM | Google Gemini (`gemini-2.0-flash`) |
+| LLM | Google Gemini (`gemini-3.1-flash-lite`) |
 | HTML Cleaning | BeautifulSoup4 |
 | Logging | Loguru |
 
@@ -54,9 +54,8 @@ Analytics_Vidya/
 │   └── all-MiniLM-L6-v2/   # Saved embedding model weights
 ├── faiss/
 │   ├── faiss_index.index    # FAISS vector index (created by /ingest)
-│   ├── faiss_ids.npy        # FAISS position → SQLite id mapping
 │   └── metadata.json        # FAISS position → SQLite id (JSON)
-└── qa.db                    # SQLite database
+└── qa.db                    # SQLite database (storing all the extracted content from the csv files)
 ```
 
 ---
@@ -69,7 +68,7 @@ Analytics_Vidya/
 uv sync
 ```
 
-### 2. Save the embedding model locally (run once)
+### 2. Save the embedding model locally (run samp.py)
 
 ```python
 from sentence_transformers import SentenceTransformer
@@ -94,7 +93,7 @@ Get your API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
 ### 4. Run the server
 
 ```bash
-python main.py
+uv run main.py
 ```
 
 Server starts at `http://localhost:7000`. Swagger UI available at `http://localhost:7000/docs`.
@@ -105,11 +104,11 @@ Server starts at `http://localhost:7000`. Swagger UI available at `http://localh
 
 ### `POST /ingest`
 
-Reads the CSV files, preprocesses the data, creates embeddings for all questions, stores everything in SQLite and builds the FAISS index. **Run this once before using `/search` or `/ask`.**
+Reads the CSV files, preprocesses the data, creates embeddings for all questions, stores everything in SQLite and builds the FAISS index. **Run this once before using  `/ask`.**
 
 **What it does internally:**
 1. Loads `Questions.csv` and `Answers.csv`
-2. Filters out questions and answers with score ≤ 0
+2. Filters out questions and answers with score ≤ 0 and parentId for mapping questions and answers correctly
 3. Keeps only the highest-scored answer per question
 4. Merges questions with their best answers
 5. Strips HTML tags from answer bodies using BeautifulSoup
@@ -134,46 +133,6 @@ Reads the CSV files, preprocesses the data, creates embeddings for all questions
 **Notes:**
 - Re-running `/ingest` clears the existing SQLite table and rebuilds the FAISS index from scratch.
 - This is a slow operation — it embeds every question one by one. Expect several minutes for large datasets.
-
----
-
-### `GET /search?q=<query>`
-
-Performs a semantic search over the FAISS index and returns the top 10 most relevant Q&A pairs without calling the LLM. Useful for debugging retrieval quality before running `/ask`.
-
-**What it does internally:**
-1. Embeds the query using the same `all-MiniLM-L6-v2` model
-2. L2-normalizes the query vector (required for cosine similarity with `IndexFlatIP`)
-3. Searches the FAISS index for the top 10 nearest vectors
-4. Maps FAISS positions back to SQLite ids using `metadata.json`
-5. Fetches the full Q&A records from SQLite
-
-**Query parameter:**
-
-| Parameter | Type | Description |
-|---|---|---|
-| `q` | string | The search query text |
-
-**Example:**
-```
-GET http://localhost:7000/search?q=How to reverse a list in Python
-```
-
-**Response:**
-```json
-{
-  "query": "How to reverse a list in Python",
-  "count": 10,
-  "results": [
-    {
-      "id": 1,
-      "question": "How do you reverse a list in Python?",
-      "answer": "Use list[::-1] or list.reverse()...",
-      "score": 2341
-    }
-  ]
-}
-```
 
 ---
 
@@ -220,26 +179,6 @@ The main RAG endpoint. Takes a user question, retrieves the top 10 relevant Q&A 
 
 ---
 
-### `GET /extract`
-
-Returns all stored Q&A records from the SQLite database. Useful for inspecting what was ingested.
-
-**Request:** No parameters required.
-
-**Response:**
-```json
-{
-  "count": 38142,
-  "data": [
-    {
-      "id": 1,
-      "question": "How can I find the full path to a font from its display name on a Mac?",
-      "answer": "Open up a terminal and type...",
-      "score": 21
-    }
-  ]
-}
-```
 
 **Note:** Returns all records — for large datasets this response can be very large. Use `/search` for targeted lookups.
 
@@ -249,9 +188,7 @@ Returns all stored Q&A records from the SQLite database. Useful for inspecting w
 
 ```
 1. POST /ingest          ← run once to populate DB and build FAISS index
-2. GET  /search?q=...    ← optional: verify retrieval quality
 3. POST /ask             ← ask questions, get grounded LLM answers
-4. GET  /extract         ← inspect all stored records
 ```
 
 ---
