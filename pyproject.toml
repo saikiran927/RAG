@@ -1,0 +1,20 @@
+[project]
+name = "analytics-vidya"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pandas",
+    "numpy",
+    "fastapi",
+    "uvicorn[standard]",
+    "bs4",
+    "requests",
+    "sentence_transformers",
+    "loguru",
+    "faiss-cpu",
+    "google-generativeai",
+    "google-genai>=2.8.0",
+    "openai>=2.41.1",
+]
