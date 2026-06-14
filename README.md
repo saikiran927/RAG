@@ -1,4 +1,4 @@
-# Analytics Vidya RAG — Python Q&A API
+# Python Q&A Assistant
 
 A Retrieval-Augmented Generation (RAG) pipeline built on top of a Stack Overflow Python Q&A dataset. It ingests questions and answers from CSV files, creates semantic embeddings using all-minilm-l6-vs which best at very Fast, stores them in a FAISS vector index and SQLite database, and serves an API that answers user queries using Google Gemini llm grounded strictly in the retrieved context.
 
