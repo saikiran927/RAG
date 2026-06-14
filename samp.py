@@ -10,8 +10,8 @@ os.makedirs('./model', exist_ok=True)
 os.environ["TRANSFORMERS_OFFLINE"] = "1"
 os.environ["HF_DATASETS_OFFLINE"] = "1"
 
-# model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
-# model.save('./model/all-MiniLM-L6-v2')
+model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+model.save('./model/all-MiniLM-L6-v2')
 pd.set_option('display.max_colwidth', None)
 
 # def embedding(text: str) -> list[float]:
